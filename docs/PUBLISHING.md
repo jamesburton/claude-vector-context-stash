@@ -58,14 +58,33 @@ Releases run from [`.github/workflows/release.yml`](../.github/workflows/release
    git tag v0.1.6
    git push origin v0.1.6
    ```
-4. The workflow restores, builds, packs (version from the tag), **smoke-tests the packaged tool via
-   `dnx` against the local artifacts feed**, then pushes to NuGet.org with `--skip-duplicate`.
+4. The workflow's `pack` job restores, builds, packs (version from the tag), and **smoke-tests the
+   packaged tool against the local artifacts feed**. The gated `publish` job then exchanges a GitHub
+   OIDC token for a short-lived NuGet key and pushes with `--skip-duplicate`.
 
 **Dry run:** trigger the workflow manually (Actions → Release → Run workflow) with `push` unchecked
 to pack and smoke-test without publishing.
 
-**One-time setup:** add a repository secret `NUGET_API_KEY` — a NuGet.org API key scoped to push the
-`CCStash` package.
+### Trusted Publishing (OIDC — no long-lived API key)
+
+Publishing uses [NuGet Trusted Publishing](https://learn.microsoft.com/nuget/nuget-org/trusted-publishing):
+the `publish` job requests a GitHub OIDC token (`permissions: id-token: write`), and `NuGet/login@v1`
+exchanges it for a temporary (~1 hour) API key. No secret key is stored.
+
+**One-time setup:**
+
+1. On nuget.org → your username → **Trusted Publishing**, add a policy:
+   - **Repository Owner:** your GitHub owner
+   - **Repository:** `claude-vector-context-stash`
+   - **Workflow File:** `release.yml` (filename only, no path)
+   - **Environment:** `nuget` (must match `environment: nuget` on the `publish` job)
+2. Add a repository **secret** `NUGET_USER` = your nuget.org **profile name** (not your email).
+3. (Recommended) Add a GitHub Actions **environment** named `nuget` with any protection rules you
+   want (e.g. required reviewers) — it gates the publish step.
+
+> The `publish` job is split out and bound to the `nuget` environment so environment protection
+> wraps only the push; the `pack`/smoke-test job runs unconditionally. For a private repo the policy
+> is provisionally active for 7 days until the first successful publish locks it to the repo/owner IDs.
 
 ## Testing consumption via `dnx`
 

@@ -1,14 +1,19 @@
 name: Release
 
-# Publishes CCStash to NuGet.org when a v* tag is pushed.
+# Publishes CCStash to NuGet.org via Trusted Publishing (OIDC — no long-lived API key).
 # Cut tags from a green main (CI runs the full test suite on every push/PR to main).
 #
 #   git tag v0.1.6 && git push origin v0.1.6
 #
-# Use the manual "Run workflow" button (workflow_dispatch) for a dry run: it packs and
-# smoke-tests the tool but does not push.
+# Use the manual "Run workflow" button (workflow_dispatch) to pack + smoke-test only (push=false),
+# or to publish on demand (push=true).
 #
-# Requires repository secret NUGET_API_KEY (a NuGet.org API key scoped to push CCStash).
+# Trusted Publishing setup (nuget.org -> your username -> Trusted Publishing):
+#   Repository Owner: <your GitHub owner>
+#   Repository:       claude-vector-context-stash
+#   Workflow File:    release.yml          (filename only, no path)
+#   Environment:      nuget                (must match `environment:` on the publish job below)
+# Also add a repository secret NUGET_USER = your nuget.org profile name (not your email).
 
 on:
   push:
@@ -21,9 +26,8 @@ on:
         default: false
 
 jobs:
-  publish:
+  pack:
     runs-on: ubuntu-latest
-
     steps:
       - uses: actions/checkout@v4
 
@@ -51,7 +55,7 @@ jobs:
 
       # Pack without --no-build: PackAsTool publishes the project as part of packing, and
       # --no-build can skip that publish and pack stale output. Letting pack publish also runs the
-      # TrimUnusedNativeRuntimes target that prunes mobile/exotic native libraries.
+      # TrimUnusedNativeRuntimes target that prunes mobile/web native libraries.
       - name: Pack
         run: dotnet pack src/CCStash/CCStash.csproj -c Release -o artifacts ${{ steps.ver.outputs.arg }}
 
@@ -67,10 +71,46 @@ jobs:
           ./_smoke/ccstash status
           ./_smoke/ccstash gc --dry-run
 
+      - name: Upload package artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: nupkg
+          path: artifacts/*.nupkg
+          if-no-files-found: error
+
+  publish:
+    needs: pack
+    # Only publish for a version tag, or a manual run with push=true.
+    if: startsWith(github.ref, 'refs/tags/v') || inputs.push
+    runs-on: ubuntu-latest
+    # Gate publishing behind the protected `nuget` environment; this name must match the
+    # Environment field of the NuGet Trusted Publishing policy.
+    environment: nuget
+    permissions:
+      id-token: write   # request the GitHub OIDC token for trusted publishing
+      contents: read
+    steps:
+      - name: Set up .NET 10 SDK
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '10.0.x'
+
+      - name: Download package artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: nupkg
+          path: artifacts
+
+      # Exchange the GitHub OIDC token for a short-lived NuGet API key (valid ~1 hour).
+      - name: NuGet login (OIDC -> temporary API key)
+        id: login
+        uses: NuGet/login@v1
+        with:
+          user: ${{ secrets.NUGET_USER }}
+
       - name: Push to NuGet.org
-        if: startsWith(github.ref, 'refs/tags/v') || inputs.push
         run: >
-          dotnet nuget push "artifacts/CCStash.*.nupkg"
+          dotnet nuget push "artifacts/*.nupkg"
           --source https://api.nuget.org/v3/index.json
-          --api-key "${{ secrets.NUGET_API_KEY }}"
+          --api-key "${{ steps.login.outputs.NUGET_API_KEY }}"
           --skip-duplicate
