@@ -22,6 +22,10 @@ internal static class StashVerb
                 new StashRequest(input.TranscriptPath, CCStashPaths.ProjectHash(input.Cwd), input.SessionId),
                 cts.Token);
             Log($"stash ok: +{result.NewChunks} ({result.TotalChunks} total) {result.StashId}");
+
+            // Record this project's root against its db hash so `gc` can later distinguish a live
+            // project from one whose directory was removed. Best-effort; never throws.
+            ProjectRegistry.Record(CCStashPaths.DataDir, input.Cwd, DateTimeOffset.Now.ToString("O"));
         }
         catch (Exception ex)
         {

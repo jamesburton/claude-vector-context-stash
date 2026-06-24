@@ -4,7 +4,7 @@ using CCStash.Verbs;
 // to avoid a pre-release dependency — the verb contract is identical.)
 if (args.Length == 0)
 {
-    Console.Error.WriteLine("Usage: ccstash <stash|pointer|status|search> [args]");
+    Console.Error.WriteLine("Usage: ccstash <stash|pointer|status|search|gc|mcp|init> [args]");
     return 1;
 }
 
@@ -16,6 +16,7 @@ return args[0] switch
     "pointer" => await PointerVerb.RunAsync(Console.In, Console.Out),
     "status" => await StatusVerb.RunAsync(cwd, Console.Out),
     "search" => await SearchVerb.RunAsync(cwd, args.Length > 1 ? string.Join(' ', args[1..]) : string.Empty, Console.Out),
+    "gc" => await GcVerb.RunAsync(args[1..], Console.Out),
     "mcp" => await McpVerb.RunAsync(ResolveProject(args, cwd)),
     "init" => await InitVerb.RunAsync(cwd, Console.Out),
     _ => Unknown(args[0]),
