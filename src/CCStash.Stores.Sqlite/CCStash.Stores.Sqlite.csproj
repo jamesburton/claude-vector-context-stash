@@ -6,6 +6,12 @@
 
   <ItemGroup>
     <PackageReference Include="Microsoft.Data.Sqlite" Version="10.0.9" />
+
+    <!-- Float the SQLitePCLRaw bundle up to 3.0.3 so the bundled native SQLite is 3.50.4
+         (SourceGear.sqlite3 3.50.4.5). Microsoft.Data.Sqlite 10.0.9 otherwise pulls
+         SQLitePCLRaw.lib.e_sqlite3 2.1.11, which ships SQLite < 3.50.2 and is flagged by
+         CVE-2025-6965 (NU1903). -->
+    <PackageReference Include="SQLitePCLRaw.bundle_e_sqlite3" Version="3.0.3" />
   </ItemGroup>
 
   <PropertyGroup>
