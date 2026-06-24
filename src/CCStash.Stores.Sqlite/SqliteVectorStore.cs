@@ -13,6 +13,10 @@ namespace CCStash.Stores.Sqlite;
 /// </summary>
 public sealed class SqliteVectorStore(string dbPath) : IVectorStore
 {
+    // Serializes access to the single connection. The long-lived MCP server resolves one store as
+    // a DI singleton; Microsoft.Data.Sqlite forbids concurrent commands on one connection, so any
+    // overlapping tool calls must take turns.
+    private readonly SemaphoreSlim _gate = new(1, 1);
     private SqliteConnection? _connection;
 
     private SqliteConnection Conn => _connection ?? throw new InvalidOperationException("InitializeAsync not called.");
@@ -89,6 +93,9 @@ public sealed class SqliteVectorStore(string dbPath) : IVectorStore
     /// <inheritdoc/>
     public async Task UpsertAsync(IReadOnlyList<StoredChunk> chunks, CancellationToken ct = default)
     {
+        await _gate.WaitAsync(ct);
+        try
+        {
         await using var tx = await Conn.BeginTransactionAsync(ct);
         foreach (var c in chunks)
         {
@@ -115,11 +122,19 @@ public sealed class SqliteVectorStore(string dbPath) : IVectorStore
         }
 
         await tx.CommitAsync(ct);
+        }
+        finally
+        {
+            _gate.Release();
+        }
     }
 
     /// <inheritdoc/>
     public async Task<IReadOnlyList<SearchHit>> SearchAsync(float[] query, int limit, string? session, string? queryText = null, CancellationToken ct = default)
     {
+        await _gate.WaitAsync(ct);
+        try
+        {
         // Vector pass: cosine over every (session-scoped) chunk. Keeps cosine for all candidates.
         var candidates = new List<(StoredChunk Chunk, float Cosine)>();
         await using (var cmd = Conn.CreateCommand())
@@ -178,6 +193,11 @@ public sealed class SqliteVectorStore(string dbPath) : IVectorStore
             .Where(x => byId.ContainsKey(x.Id))
             .Select(x => new SearchHit(byId[x.Id], cosineById[x.Id]))
             .ToList();
+        }
+        finally
+        {
+            _gate.Release();
+        }
     }
 
     private async Task<Dictionary<string, int>> KeywordRankAsync(string? queryText, string? session, CancellationToken ct)
@@ -234,31 +254,59 @@ public sealed class SqliteVectorStore(string dbPath) : IVectorStore
     /// <inheritdoc/>
     public async Task<int> CountAsync(string? session, CancellationToken ct = default)
     {
-        await using var cmd = Conn.CreateCommand();
-        cmd.CommandText = "SELECT COUNT(*) FROM chunks WHERE ($s IS NULL OR session=$s);";
-        cmd.Parameters.AddWithValue("$s", (object?)session ?? DBNull.Value);
-        return Convert.ToInt32(await cmd.ExecuteScalarAsync(ct), CultureInfo.InvariantCulture);
+        await _gate.WaitAsync(ct);
+        try
+        {
+            await using var cmd = Conn.CreateCommand();
+            cmd.CommandText = "SELECT COUNT(*) FROM chunks WHERE ($s IS NULL OR session=$s);";
+            cmd.Parameters.AddWithValue("$s", (object?)session ?? DBNull.Value);
+            return Convert.ToInt32(await cmd.ExecuteScalarAsync(ct), CultureInfo.InvariantCulture);
+        }
+        finally
+        {
+            _gate.Release();
+        }
     }
 
     /// <inheritdoc/>
     public async Task<int> GetHighWaterMarkAsync(string session, CancellationToken ct = default)
     {
-        await using var cmd = Conn.CreateCommand();
-        cmd.CommandText = "SELECT COALESCE(MAX(turn_index), -1) FROM chunks WHERE session=$s;";
-        cmd.Parameters.AddWithValue("$s", session);
-        return Convert.ToInt32(await cmd.ExecuteScalarAsync(ct), CultureInfo.InvariantCulture);
+        await _gate.WaitAsync(ct);
+        try
+        {
+            await using var cmd = Conn.CreateCommand();
+            cmd.CommandText = "SELECT COALESCE(MAX(turn_index), -1) FROM chunks WHERE session=$s;";
+            cmd.Parameters.AddWithValue("$s", session);
+            return Convert.ToInt32(await cmd.ExecuteScalarAsync(ct), CultureInfo.InvariantCulture);
+        }
+        finally
+        {
+            _gate.Release();
+        }
     }
 
     /// <inheritdoc/>
     public async Task<string?> GetLatestSessionAsync(CancellationToken ct = default)
     {
-        await using var cmd = Conn.CreateCommand();
-        cmd.CommandText = "SELECT session FROM chunks ORDER BY ts DESC LIMIT 1;";
-        return await cmd.ExecuteScalarAsync(ct) as string;
+        await _gate.WaitAsync(ct);
+        try
+        {
+            await using var cmd = Conn.CreateCommand();
+            cmd.CommandText = "SELECT session FROM chunks ORDER BY ts DESC LIMIT 1;";
+            return await cmd.ExecuteScalarAsync(ct) as string;
+        }
+        finally
+        {
+            _gate.Release();
+        }
     }
 
-    /// <summary>Close the underlying connection.</summary>
-    public void Dispose() => _connection?.Dispose();
+    /// <summary>Close the underlying connection and release the gate.</summary>
+    public void Dispose()
+    {
+        _connection?.Dispose();
+        _gate.Dispose();
+    }
 
     private static byte[] ToBlob(float[] v)
     {
