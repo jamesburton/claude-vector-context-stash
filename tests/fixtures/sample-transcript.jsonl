@@ -1,0 +1,8 @@
+{"type":"user","timestamp":"2026-06-24T10:00:00Z","message":{"role":"user","content":"Let's design a vector context stash for Claude Code. What store should we use?"}}
+{"type":"assistant","timestamp":"2026-06-24T10:00:05Z","message":{"role":"assistant","content":[{"type":"thinking","thinking":"They want local-first. sqlite-vec is zero-friction."},{"type":"text","text":"I recommend sqlite-vec as the default store: single embedded file, no daemon."}]}}
+{"type":"assistant","timestamp":"2026-06-24T10:00:10Z","message":{"role":"assistant","content":[{"type":"tool_use","name":"Read","input":{"file_path":"README.md"}}]}}
+{"type":"user","timestamp":"2026-06-24T10:00:11Z","message":{"role":"user","content":[{"type":"tool_result","content":"Consider use of sqlitevec or qdrant as vector repositories to be populated on pre-compaction hooks."}]}}
+{"type":"assistant","timestamp":"2026-06-24T10:00:20Z","message":{"role":"assistant","content":[{"type":"text","text":"Confirmed from the README: sqlite-vec or Qdrant. We'll default to sqlite-vec and keep Qdrant pluggable behind an interface."}]}}
+{"type":"summary","summary":"A non-conversation line that must be ignored by the parser."}
+{"type":"user","timestamp":"2026-06-24T10:01:00Z","message":{"role":"user","content":"Great. Make the post-compaction injection a minimal pointer, not a blob."}}
+{"type":"assistant","timestamp":"2026-06-24T10:01:05Z","message":{"role":"assistant","content":[{"type":"text","text":"Agreed. The pointer names the stash id and tells the model to call retrieve_context for detail."}]}}
