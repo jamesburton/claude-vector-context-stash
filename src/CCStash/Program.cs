@@ -16,6 +16,7 @@ return args[0] switch
     "pointer" => await PointerVerb.RunAsync(Console.In, Console.Out),
     "status" => await StatusVerb.RunAsync(cwd, Console.Out),
     "search" => await SearchVerb.RunAsync(cwd, args.Length > 1 ? string.Join(' ', args[1..]) : string.Empty, Console.Out),
+    "mcp" => await McpVerb.RunAsync(cwd),
     _ => Unknown(args[0]),
 };
 
