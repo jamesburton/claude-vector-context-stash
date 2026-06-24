@@ -14,7 +14,7 @@ public sealed record CCStashConfig(
     string QdrantHost = "localhost",
     int QdrantPort = 6334,
     string? QdrantApiKey = null,
-    int StashTimeoutSeconds = 120)
+    int StashTimeoutSeconds = 300)
 {
     /// <summary>True when retrieval should span all sessions in the project.</summary>
     public bool ProjectWide => string.Equals(RetrievalScope, "project", StringComparison.OrdinalIgnoreCase);

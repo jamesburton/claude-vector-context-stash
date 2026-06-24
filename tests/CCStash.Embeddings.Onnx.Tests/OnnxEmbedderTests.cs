@@ -70,6 +70,29 @@ public class OnnxEmbedderTests
         Assert.Equal(a, b);
     }
 
+    [Fact]
+    public async Task Batched_embeddings_match_single_embeddings()
+    {
+        if (ModelDir is null)
+        {
+            return;
+        }
+
+        using var e = await OnnxEmbedder.LoadAsync(ModelDir!);
+
+        var texts = new[] { "short", "a noticeably longer sentence about cats and mats", "another one" };
+        var batch = await e.EmbedBatchAsync(texts);
+
+        for (var i = 0; i < texts.Length; i++)
+        {
+            var single = await e.EmbedAsync(texts[i]);
+
+            // Padding to the batch maximum is masked out of attention, so batched and single-row
+            // results are the same vector up to floating-point noise (cosine ~1).
+            Assert.Equal(1f, Dot(batch[i], single), 3);
+        }
+    }
+
     private static float Dot(float[] a, float[] b)
     {
         float d = 0;
