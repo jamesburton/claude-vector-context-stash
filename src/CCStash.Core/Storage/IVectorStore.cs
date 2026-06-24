@@ -9,8 +9,12 @@ public interface IVectorStore : IDisposable
     /// <summary>Insert or replace chunks by <see cref="StoredChunk.Id"/>.</summary>
     Task UpsertAsync(IReadOnlyList<StoredChunk> chunks, CancellationToken ct = default);
 
-    /// <summary>Return the nearest chunks to <paramref name="query"/>, optionally limited to one session.</summary>
-    Task<IReadOnlyList<SearchHit>> SearchAsync(float[] query, int limit, string? session, CancellationToken ct = default);
+    /// <summary>
+    /// Return the nearest chunks to <paramref name="query"/>, optionally limited to one session.
+    /// When <paramref name="queryText"/> is supplied, stores that support it may blend keyword
+    /// relevance with vector similarity (hybrid search); others ignore it.
+    /// </summary>
+    Task<IReadOnlyList<SearchHit>> SearchAsync(float[] query, int limit, string? session, string? queryText = null, CancellationToken ct = default);
 
     /// <summary>Count chunks, optionally for a single session.</summary>
     Task<int> CountAsync(string? session, CancellationToken ct = default);

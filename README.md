@@ -77,6 +77,9 @@ See [docs/INSTALL.md](docs/INSTALL.md) for details and the end-to-end check.
 
 ## Status
 
-Working end-to-end: stash (incremental) → pointer → semantic `retrieve_context`. sqlite-vec native
-extension and Qdrant/hybrid-search backends are planned behind the existing `IVectorStore` interface;
-local ONNX embeddings are the default, with `FakeEmbedder` as an offline fallback so hooks never fail.
+Working end-to-end: stash (incremental) → pointer → semantic `retrieve_context`, across both the
+**SQLite** (default, single-file, with **hybrid vector + FTS5/BM25 search** fused via Reciprocal Rank
+Fusion) and **Qdrant** backends, selectable by config. Local ONNX embeddings are the default, with
+`FakeEmbedder` as an offline fallback so hooks never fail. The native `sqlite-vec` ANN extension and
+Qdrant native hybrid (sparse vectors) remain planned optimizations behind the existing `IVectorStore`
+interface.

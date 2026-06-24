@@ -70,8 +70,9 @@ public sealed class QdrantVectorStore : IVectorStore
     }
 
     /// <inheritdoc/>
-    public async Task<IReadOnlyList<SearchHit>> SearchAsync(float[] query, int limit, string? session, CancellationToken ct = default)
+    public async Task<IReadOnlyList<SearchHit>> SearchAsync(float[] query, int limit, string? session, string? queryText = null, CancellationToken ct = default)
     {
+        // queryText is ignored here; Qdrant native hybrid (sparse vectors) is a future enhancement.
         var hits = await _client.SearchAsync(
             _collection,
             query,

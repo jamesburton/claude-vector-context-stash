@@ -38,6 +38,7 @@ public sealed class SqliteVectorStore(string dbPath) : IVectorStore
                 role TEXT, type TEXT, ts TEXT, text TEXT, embedding BLOB);
             CREATE INDEX IF NOT EXISTS ix_chunks_session ON chunks(session);
             CREATE TABLE IF NOT EXISTS meta(key TEXT PRIMARY KEY, value TEXT);
+            CREATE VIRTUAL TABLE IF NOT EXISTS chunks_fts USING fts5(id UNINDEXED, text);
             """, ct);
 
         await GuardEmbeddingModelAsync(dimension, embeddingModel, ct);
@@ -56,7 +57,7 @@ public sealed class SqliteVectorStore(string dbPath) : IVectorStore
 
         if (storedModel is not null && $"{storedModel}/{storedDim}" != current)
         {
-            await Exec("DELETE FROM chunks;", ct);
+            await Exec("DELETE FROM chunks; DELETE FROM chunks_fts;", ct);
         }
 
         await Exec(
@@ -80,6 +81,8 @@ public sealed class SqliteVectorStore(string dbPath) : IVectorStore
                 VALUES($id,$p,$s,$t,$r,$ty,$ts,$txt,$emb)
                 ON CONFLICT(id) DO UPDATE SET
                     project=$p,session=$s,turn_index=$t,role=$r,type=$ty,ts=$ts,text=$txt,embedding=$emb;
+                DELETE FROM chunks_fts WHERE id=$id;
+                INSERT INTO chunks_fts(id,text) VALUES($id,$txt);
                 """;
             cmd.Parameters.AddWithValue("$id", c.Id);
             cmd.Parameters.AddWithValue("$p", c.Project);
@@ -97,25 +100,117 @@ public sealed class SqliteVectorStore(string dbPath) : IVectorStore
     }
 
     /// <inheritdoc/>
-    public async Task<IReadOnlyList<SearchHit>> SearchAsync(float[] query, int limit, string? session, CancellationToken ct = default)
+    public async Task<IReadOnlyList<SearchHit>> SearchAsync(float[] query, int limit, string? session, string? queryText = null, CancellationToken ct = default)
     {
+        // Vector pass: cosine over every (session-scoped) chunk. Keeps cosine for all candidates.
+        var candidates = new List<(StoredChunk Chunk, float Cosine)>();
+        await using (var cmd = Conn.CreateCommand())
+        {
+            cmd.CommandText =
+                """
+                SELECT id,project,session,turn_index,role,type,ts,text,embedding
+                FROM chunks WHERE ($session IS NULL OR session = $session);
+                """;
+            cmd.Parameters.AddWithValue("$session", (object?)session ?? DBNull.Value);
+            await using var reader = await cmd.ExecuteReaderAsync(ct);
+            while (await reader.ReadAsync(ct))
+            {
+                var embedding = FromBlob((byte[])reader["embedding"]);
+                candidates.Add((ReadChunk(reader, embedding), Cosine(query, embedding)));
+            }
+        }
+
+        if (candidates.Count == 0)
+        {
+            return [];
+        }
+
+        var cosineById = candidates.ToDictionary(c => c.Chunk.Id, c => c.Cosine);
+
+        // Rank by vector similarity (1-based).
+        var vecRank = candidates
+            .OrderByDescending(c => c.Cosine)
+            .Select((c, i) => (c.Chunk.Id, Rank: i + 1))
+            .ToDictionary(x => x.Id, x => x.Rank);
+
+        // Keyword pass (FTS5/BM25). If there are no usable terms, fall back to pure vector ranking.
+        var ftsRank = await KeywordRankAsync(queryText, session, ct);
+        if (ftsRank.Count == 0)
+        {
+            return candidates
+                .OrderByDescending(c => c.Cosine)
+                .Take(limit)
+                .Select(c => new SearchHit(c.Chunk, c.Cosine))
+                .ToList();
+        }
+
+        // Reciprocal Rank Fusion across the two rankings; report cosine as the displayed score.
+        const float K = 60f;
+        var byId = candidates.ToDictionary(c => c.Chunk.Id, c => c.Chunk);
+        var ids = vecRank.Keys.Union(ftsRank.Keys);
+        return ids
+            .Select(id => new
+            {
+                Id = id,
+                Rrf = (vecRank.TryGetValue(id, out var vr) ? 1f / (K + vr) : 0f)
+                    + (ftsRank.TryGetValue(id, out var fr) ? 1f / (K + fr) : 0f),
+            })
+            .OrderByDescending(x => x.Rrf)
+            .Take(limit)
+            .Where(x => byId.ContainsKey(x.Id))
+            .Select(x => new SearchHit(byId[x.Id], cosineById[x.Id]))
+            .ToList();
+    }
+
+    private async Task<Dictionary<string, int>> KeywordRankAsync(string? queryText, string? session, CancellationToken ct)
+    {
+        var match = BuildMatchQuery(queryText);
+        if (match is null)
+        {
+            return [];
+        }
+
         await using var cmd = Conn.CreateCommand();
         cmd.CommandText =
             """
-            SELECT id,project,session,turn_index,role,type,ts,text,embedding
-            FROM chunks WHERE ($session IS NULL OR session = $session);
+            SELECT f.id FROM chunks_fts f
+            JOIN chunks c ON c.id = f.id
+            WHERE f.text MATCH $q AND ($session IS NULL OR c.session = $session)
+            ORDER BY bm25(chunks_fts) LIMIT 50;
             """;
+        cmd.Parameters.AddWithValue("$q", match);
         cmd.Parameters.AddWithValue("$session", (object?)session ?? DBNull.Value);
 
-        var hits = new List<SearchHit>();
+        var ranks = new Dictionary<string, int>();
         await using var reader = await cmd.ExecuteReaderAsync(ct);
+        var rank = 1;
         while (await reader.ReadAsync(ct))
         {
-            var embedding = FromBlob((byte[])reader["embedding"]);
-            hits.Add(new SearchHit(ReadChunk(reader, embedding), Cosine(query, embedding)));
+            ranks[reader.GetString(0)] = rank++;
         }
 
-        return hits.OrderByDescending(h => h.Score).Take(limit).ToList();
+        return ranks;
+    }
+
+    /// <summary>Turn free text into a safe FTS5 OR-query of alphanumeric terms, or null if none.</summary>
+    private static string? BuildMatchQuery(string? queryText)
+    {
+        if (string.IsNullOrWhiteSpace(queryText))
+        {
+            return null;
+        }
+
+        var terms = new List<string>();
+        foreach (var raw in queryText.Split((char[]?)null, StringSplitOptions.RemoveEmptyEntries))
+        {
+            var token = new string(raw.Where(char.IsLetterOrDigit).ToArray());
+            if (token.Length > 1)
+            {
+                terms.Add($"\"{token}\"");
+            }
+        }
+
+        return terms.Count == 0 ? null : string.Join(" OR ", terms);
     }
 
     /// <inheritdoc/>

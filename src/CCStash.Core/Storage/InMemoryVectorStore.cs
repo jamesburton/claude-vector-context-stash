@@ -21,7 +21,7 @@ public sealed class InMemoryVectorStore : IVectorStore
     }
 
     /// <inheritdoc/>
-    public Task<IReadOnlyList<SearchHit>> SearchAsync(float[] query, int limit, string? session, CancellationToken ct = default)
+    public Task<IReadOnlyList<SearchHit>> SearchAsync(float[] query, int limit, string? session, string? queryText = null, CancellationToken ct = default)
     {
         IReadOnlyList<SearchHit> hits = _chunks.Values
             .Where(c => session is null || c.Session == session)

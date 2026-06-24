@@ -21,7 +21,7 @@ public sealed class RetrievalService(IEmbedder embedder, IVectorStore store) : I
     {
         await store.InitializeAsync(embedder.Dimension, embedder.ModelId, ct);
         var q = await embedder.EmbedAsync(query, ct);
-        var hits = await store.SearchAsync(q, limit, session, ct);
+        var hits = await store.SearchAsync(q, limit, session, query, ct);
         return hits
             .Select(h => new RetrievedChunk(h.Chunk.Text, h.Chunk.TurnIndex, h.Chunk.Role, h.Chunk.Timestamp, h.Score))
             .ToList();
