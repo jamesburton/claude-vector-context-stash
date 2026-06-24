@@ -1,0 +1,51 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+jobs:
+  build-test:
+    runs-on: ubuntu-latest
+
+    services:
+      qdrant:
+        image: qdrant/qdrant:latest
+        ports:
+          - 6333:6333
+          - 6334:6334
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up .NET 10 SDK
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '10.0.x'
+
+      - name: Cache embedding model
+        id: model-cache
+        uses: actions/cache@v4
+        with:
+          path: ~/.claude/ccstash/models/all-MiniLM-L6-v2
+          key: minilm-l6-v2-onnx-v1
+
+      - name: Download embedding model
+        if: steps.model-cache.outputs.cache-hit != 'true'
+        run: |
+          dir=~/.claude/ccstash/models/all-MiniLM-L6-v2
+          mkdir -p "$dir"
+          base=https://huggingface.co/Xenova/all-MiniLM-L6-v2/resolve/main
+          curl -fL -o "$dir/model.onnx"     "$base/onnx/model.onnx"
+          curl -fL -o "$dir/tokenizer.json" "$base/tokenizer.json"
+
+      - name: Restore
+        run: dotnet restore
+
+      - name: Build
+        run: dotnet build --no-restore -c Release
+
+      - name: Test
+        run: dotnet test --no-build -c Release --logger "console;verbosity=normal"
