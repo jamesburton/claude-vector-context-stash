@@ -7,11 +7,15 @@
   <ItemGroup>
     <PackageReference Include="Microsoft.Data.Sqlite" Version="10.0.9" />
 
-    <!-- Float the SQLitePCLRaw bundle up to 3.0.3 so the bundled native SQLite is 3.50.4
-         (SourceGear.sqlite3 3.50.4.5). Microsoft.Data.Sqlite 10.0.9 otherwise pulls
-         SQLitePCLRaw.lib.e_sqlite3 2.1.11, which ships SQLite < 3.50.2 and is flagged by
-         CVE-2025-6965 (NU1903). -->
-    <PackageReference Include="SQLitePCLRaw.bundle_e_sqlite3" Version="3.0.3" />
+    <!-- Security pin (NU1903 / CVE-2025-6965): Microsoft.Data.Sqlite 10.0.9 pulls the native
+         SQLitePCLRaw.lib.e_sqlite3 2.1.11, which bundles SQLite < 3.50.2 (aggregate-term memory
+         corruption). The native package's version now tracks the bundled SQLite version, so
+         forcing it to 3.50.3 swaps in a patched SQLite. Only the native asset moves;
+         SQLitePCLRaw.core/provider stay at 2.1.11 (ABI-stable), so Microsoft.Data.Sqlite is
+         unaffected. NuGet versions are minimums, so 3.50.3 satisfies every >= 2.1.11 constraint.
+         The CLI and this project's test project inherit the override transitively via project
+         reference. Remove once a 2.1.x patch ships or the providers move to the 3.x line. -->
+    <PackageReference Include="SQLitePCLRaw.lib.e_sqlite3" Version="3.50.3" />
   </ItemGroup>
 
   <PropertyGroup>
