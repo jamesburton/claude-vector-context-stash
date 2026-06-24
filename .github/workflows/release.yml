@@ -1,0 +1,76 @@
+name: Release
+
+# Publishes CCStash to NuGet.org when a v* tag is pushed.
+# Cut tags from a green main (CI runs the full test suite on every push/PR to main).
+#
+#   git tag v0.1.6 && git push origin v0.1.6
+#
+# Use the manual "Run workflow" button (workflow_dispatch) for a dry run: it packs and
+# smoke-tests the tool but does not push.
+#
+# Requires repository secret NUGET_API_KEY (a NuGet.org API key scoped to push CCStash).
+
+on:
+  push:
+    tags: ['v*']
+  workflow_dispatch:
+    inputs:
+      push:
+        description: 'Push to NuGet.org (otherwise pack + smoke-test only)'
+        type: boolean
+        default: false
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up .NET 10 SDK
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '10.0.x'
+
+      # For a tag build, override the package version from the tag (v0.1.6 -> 0.1.6) so the
+      # artifact always matches the tag. For a manual run, fall back to the csproj <Version>.
+      - name: Resolve version
+        id: ver
+        run: |
+          if [[ "${GITHUB_REF}" == refs/tags/v* ]]; then
+            echo "arg=-p:Version=${GITHUB_REF_NAME#v}" >> "$GITHUB_OUTPUT"
+          else
+            echo "arg=" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Restore
+        run: dotnet restore
+
+      - name: Build
+        run: dotnet build --no-restore -c Release
+
+      # Pack without --no-build: PackAsTool publishes the project as part of packing, and
+      # --no-build can skip that publish and pack stale output. Letting pack publish also runs the
+      # TrimUnusedNativeRuntimes target that prunes mobile/exotic native libraries.
+      - name: Pack
+        run: dotnet pack src/CCStash/CCStash.csproj -c Release -o artifacts ${{ steps.ver.outputs.arg }}
+
+      - name: Report package size
+        run: ls -lh artifacts/*.nupkg
+
+      # Install the freshly packed tool from the LOCAL artifacts feed (not NuGet.org, which has
+      # indexing lag) and run it. This proves the package installs and that the kept linux-x64
+      # native libraries (onnxruntime + e_sqlite3) load — `status` opens the SQLite store.
+      - name: Smoke-test the packaged tool via the local feed
+        run: |
+          dotnet tool install --tool-path ./_smoke --add-source ./artifacts CCStash
+          ./_smoke/ccstash status
+          ./_smoke/ccstash gc --dry-run
+
+      - name: Push to NuGet.org
+        if: startsWith(github.ref, 'refs/tags/v') || inputs.push
+        run: >
+          dotnet nuget push "artifacts/CCStash.*.nupkg"
+          --source https://api.nuget.org/v3/index.json
+          --api-key "${{ secrets.NUGET_API_KEY }}"
+          --skip-duplicate

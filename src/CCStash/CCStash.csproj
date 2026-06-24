@@ -24,11 +24,47 @@
     <PackAsTool>true</PackAsTool>
     <ToolCommandName>ccstash</ToolCommandName>
     <PackageId>CCStash</PackageId>
-    <Version>0.1.5</Version>
+    <Version>0.1.6</Version>
     <Description>Compaction-aware vector context stash for Claude Code: stashes the transcript before compaction and serves it back on demand via an MCP retrieve_context tool.</Description>
     <Authors>James Burton</Authors>
     <PackageLicenseExpression>MIT</PackageLicenseExpression>
     <PackageTags>claude-code;mcp;vector;embeddings;rag;cli</PackageTags>
   </PropertyGroup>
+
+  <!--
+    Selective native-runtime inclusion. Microsoft.ML.OnnxRuntime and SQLitePCLRaw drag native
+    binaries for every platform they support into the publish output, which PackAsTool then bundles:
+    the iOS xcframework (~50 MB) and Android aar (~42 MB) alone are over half the package. CCStash
+    is a desktop/server CLI run via dnx (which requires the .NET SDK, so a framework-dependent tool
+    is appropriate), so we drop native assets for platforms it never runs on and keep only the
+    desktop/server RIDs below. This trims the tool package from ~164 MB to ~55 MB. The filter runs
+    only at publish/pack time, so normal build and test (which load natives from the NuGet cache)
+    are unaffected.
+  -->
+  <!-- The .NET tool package is built by globbing the publish directory on disk
+       (_PublishFiles Include="$(PublishDir)/**/*" in Microsoft.NET.PackTool.targets), so the prune
+       must delete files from PublishDir, not from MSBuild item lists. This target deletes native
+       assets for mobile/web platforms a desktop CLI never runs on — iOS (incl. iossimulator),
+       Android, Mac Catalyst, browser-wasm — which hold the ~50 MB ONNX iOS xcframework, the ~42 MB
+       Android aar, and assorted mobile e_sqlite3 binaries (~106 MB total). A denylist is deliberate:
+       it leaves every desktop/server RID and its managed RID assets (e.g. runtimes/win/lib, which
+       .NET's default Hosting loads on Windows) untouched, where a desktop allowlist would strip them
+       and break the tool. It runs after publish and before the pack glob, so only the package is
+       affected; normal build/publish/test are not. -->
+  <Target Name="TrimPublishDirNativeRuntimes" AfterTargets="Publish">
+    <PropertyGroup>
+      <!-- Resolve to an ABSOLUTE, forward-slash, trailing-slash path. The raw $(PublishDir) is
+           relative during pack, and a relative glob here matches nothing. -->
+      <_CcStashPublishDir>$([MSBuild]::NormalizeDirectory('$(MSBuildProjectDirectory)', '$(PublishDir)').Replace('\', '/'))</_CcStashPublishDir>
+    </PropertyGroup>
+    <ItemGroup>
+      <_CcStashRuntimeFile Include="$(_CcStashPublishDir)runtimes/**/*" />
+      <_CcStashUnwantedNative Include="@(_CcStashRuntimeFile)"
+        Condition="$([System.Text.RegularExpressions.Regex]::IsMatch('$([System.String]::Copy('%(Identity)').Replace('\', '/'))', '/runtimes/(ios|android|maccatalyst|browser)'))" />
+    </ItemGroup>
+    <Delete Files="@(_CcStashUnwantedNative)" />
+    <Message Importance="high"
+             Text="TrimPublishDirNativeRuntimes: @(_CcStashRuntimeFile->Count()) runtime files, deleted @(_CcStashUnwantedNative->Count()) mobile/web native from $(_CcStashPublishDir)" />
+  </Target>
 
 </Project>
