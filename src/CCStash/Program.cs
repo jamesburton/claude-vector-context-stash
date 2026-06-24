@@ -28,7 +28,9 @@ static int Unknown(string verb)
 }
 
 // Resolve the project directory for the MCP server, which Claude Code may launch from any cwd.
-// Precedence: --project <path> arg (baked into .mcp.json by `init`) > CCSTASH_PROJECT env > cwd.
+// Precedence: --project arg (baked into project .mcp.json by `init`) > CLAUDE_PROJECT_DIR (set by
+// Claude Code in the server's env — the robust choice for a user-scoped server shared across
+// projects) > CCSTASH_PROJECT > cwd.
 static string ResolveProject(string[] args, string cwd)
 {
     var i = Array.IndexOf(args, "--project");
@@ -37,5 +39,7 @@ static string ResolveProject(string[] args, string cwd)
         return args[i + 1];
     }
 
-    return Environment.GetEnvironmentVariable("CCSTASH_PROJECT") ?? cwd;
+    return Environment.GetEnvironmentVariable("CLAUDE_PROJECT_DIR")
+        ?? Environment.GetEnvironmentVariable("CCSTASH_PROJECT")
+        ?? cwd;
 }

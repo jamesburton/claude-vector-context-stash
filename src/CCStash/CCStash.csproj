@@ -24,7 +24,7 @@
     <PackAsTool>true</PackAsTool>
     <ToolCommandName>ccstash</ToolCommandName>
     <PackageId>CCStash</PackageId>
-    <Version>0.1.0</Version>
+    <Version>0.1.1</Version>
     <Description>Compaction-aware vector context stash for Claude Code: stashes the transcript before compaction and serves it back on demand via an MCP retrieve_context tool.</Description>
     <Authors>James Burton</Authors>
     <PackageLicenseExpression>MIT</PackageLicenseExpression>
