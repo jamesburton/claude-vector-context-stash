@@ -10,7 +10,7 @@ internal static class StatusVerb
     {
         var cfg = CCStashConfig.Load(CCStashPaths.ConfigPath);
         using var store = Composition.BuildStore(cwd, cfg);
-        var embedder = Composition.BuildEmbedder(cfg);
+        var embedder = await Composition.BuildEmbedderAsync(cfg);
         await store.InitializeAsync(embedder.Dimension, embedder.ModelId);
 
         var total = await store.CountAsync(null);

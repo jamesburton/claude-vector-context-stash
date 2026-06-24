@@ -14,7 +14,7 @@ internal static class StashVerb
         {
             var input = HookInput.FromJson(await stdin.ReadToEndAsync());
             var cfg = CCStashConfig.Load(CCStashPaths.ConfigPath);
-            var svc = Composition.BuildStash(input.Cwd, cfg);
+            var svc = await Composition.BuildStashAsync(input.Cwd, cfg);
             var result = await svc.StashAsync(
                 new StashRequest(input.TranscriptPath, CCStashPaths.ProjectHash(input.Cwd), input.SessionId));
             Log($"stash ok: +{result.NewChunks} ({result.TotalChunks} total) {result.StashId}");

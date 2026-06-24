@@ -1,11 +1,13 @@
 <Solution>
   <Folder Name="/src/">
     <Project Path="src/CCStash.Core/CCStash.Core.csproj" />
+    <Project Path="src/CCStash.Embeddings.Onnx/CCStash.Embeddings.Onnx.csproj" />
     <Project Path="src/CCStash.Stores.Sqlite/CCStash.Stores.Sqlite.csproj" />
     <Project Path="src/CCStash/CCStash.csproj" />
   </Folder>
   <Folder Name="/tests/">
     <Project Path="tests/CCStash.Core.Tests/CCStash.Core.Tests.csproj" />
+    <Project Path="tests/CCStash.Embeddings.Onnx.Tests/CCStash.Embeddings.Onnx.Tests.csproj" />
     <Project Path="tests/CCStash.Stores.Sqlite.Tests/CCStash.Stores.Sqlite.Tests.csproj" />
   </Folder>
 </Solution>

@@ -5,6 +5,7 @@ using CCStash.Core.Distillation;
 using CCStash.Core.Embeddings;
 using CCStash.Core.Storage;
 using CCStash.Core.Transcript;
+using CCStash.Embeddings.Onnx;
 using CCStash.Stores.Sqlite;
 
 namespace CCStash;
@@ -13,22 +14,35 @@ namespace CCStash;
 internal static class Composition
 {
     /// <summary>
-    /// Build the embedder. The plan wires <c>OnnxEmbedder</c> here when a local model is present
-    /// (under <c>~/.claude/ccstash/models/</c>); until then this falls back to the deterministic
-    /// <see cref="FakeEmbedder"/> so the pipeline runs offline with no external dependency.
+    /// Build the embedder. Uses the local ONNX model when present under the configured model
+    /// directory; otherwise falls back to the deterministic <see cref="FakeEmbedder"/> so the
+    /// pipeline still runs offline with no external dependency (hook safety).
     /// </summary>
-    public static IEmbedder BuildEmbedder(CCStashConfig cfg) => new FakeEmbedder(384);
+    public static async Task<IEmbedder> BuildEmbedderAsync(CCStashConfig cfg)
+    {
+        if (cfg.EmbeddingProvider == "onnx")
+        {
+            var dir = Environment.GetEnvironmentVariable("CCSTASH_MODEL_DIR")
+                      ?? Path.Combine(CCStashPaths.DataDir, "models", cfg.EmbeddingModel);
+            if (File.Exists(Path.Combine(dir, "model.onnx")) && File.Exists(Path.Combine(dir, "tokenizer.json")))
+            {
+                return await OnnxEmbedder.LoadAsync(dir);
+            }
+        }
+
+        return new FakeEmbedder(384);
+    }
 
     /// <summary>Build the project-scoped vector store.</summary>
     public static IVectorStore BuildStore(string cwd, CCStashConfig cfg)
         => new SqliteVectorStore(CCStashPaths.DbPath(cwd));
 
     /// <summary>Build the stash service for a project.</summary>
-    public static IStashService BuildStash(string cwd, CCStashConfig cfg)
+    public static async Task<IStashService> BuildStashAsync(string cwd, CCStashConfig cfg)
         => new StashService(new TranscriptParser(), new Distiller(), new Chunker(),
-            BuildEmbedder(cfg), BuildStore(cwd, cfg), cfg);
+            await BuildEmbedderAsync(cfg), BuildStore(cwd, cfg), cfg);
 
     /// <summary>Build the retrieval service for a project.</summary>
-    public static IRetrievalService BuildRetrieval(string cwd, CCStashConfig cfg)
-        => new RetrievalService(BuildEmbedder(cfg), BuildStore(cwd, cfg));
+    public static async Task<IRetrievalService> BuildRetrievalAsync(string cwd, CCStashConfig cfg)
+        => new RetrievalService(await BuildEmbedderAsync(cfg), BuildStore(cwd, cfg));
 }

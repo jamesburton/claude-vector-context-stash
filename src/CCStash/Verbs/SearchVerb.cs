@@ -9,7 +9,7 @@ internal static class SearchVerb
     public static async Task<int> RunAsync(string cwd, string query, TextWriter stdout)
     {
         var cfg = CCStashConfig.Load(CCStashPaths.ConfigPath);
-        var svc = Composition.BuildRetrieval(cwd, cfg);
+        var svc = await Composition.BuildRetrievalAsync(cwd, cfg);
         var hits = await svc.RetrieveAsync(query, cfg.RetrievalLimit, session: null);
         if (hits.Count == 0)
         {
