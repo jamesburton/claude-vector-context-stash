@@ -14,9 +14,13 @@ internal static class StashVerb
         {
             var input = HookInput.FromJson(await stdin.ReadToEndAsync());
             var cfg = CCStashConfig.Load(CCStashPaths.ConfigPath);
+
+            // Bound the work so a slow embed can never hang compaction.
+            using var cts = new CancellationTokenSource(TimeSpan.FromSeconds(cfg.StashTimeoutSeconds));
             var svc = await Composition.BuildStashAsync(input.Cwd, cfg);
             var result = await svc.StashAsync(
-                new StashRequest(input.TranscriptPath, CCStashPaths.ProjectHash(input.Cwd), input.SessionId));
+                new StashRequest(input.TranscriptPath, CCStashPaths.ProjectHash(input.Cwd), input.SessionId),
+                cts.Token);
             Log($"stash ok: +{result.NewChunks} ({result.TotalChunks} total) {result.StashId}");
         }
         catch (Exception ex)

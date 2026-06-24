@@ -1,0 +1,32 @@
+﻿<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <TargetFramework>net10.0</TargetFramework>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+    <IsPackable>false</IsPackable>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="coverlet.collector" Version="6.0.4" />
+    <PackageReference Include="Microsoft.NET.Test.Sdk" Version="17.14.1" />
+    <PackageReference Include="xunit" Version="2.9.3" />
+    <PackageReference Include="xunit.runner.visualstudio" Version="3.1.4" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <Using Include="Xunit" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <None Include="..\fixtures\sample-transcript.jsonl" CopyToOutputDirectory="PreserveNewest" Link="fixtures/sample-transcript.jsonl" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\..\src\CCStash.Core\CCStash.Core.csproj" />
+    <ProjectReference Include="..\..\src\CCStash.Stores.Sqlite\CCStash.Stores.Sqlite.csproj" />
+    <ProjectReference Include="..\..\src\CCStash.Embeddings.Onnx\CCStash.Embeddings.Onnx.csproj" />
+    <ProjectReference Include="..\..\src\CCStash.Mcp\CCStash.Mcp.csproj" />
+  </ItemGroup>
+
+</Project>

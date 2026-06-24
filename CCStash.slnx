@@ -10,6 +10,7 @@
   <Folder Name="/tests/">
     <Project Path="tests/CCStash.Core.Tests/CCStash.Core.Tests.csproj" />
     <Project Path="tests/CCStash.Embeddings.Onnx.Tests/CCStash.Embeddings.Onnx.Tests.csproj" />
+    <Project Path="tests/CCStash.IntegrationTests/CCStash.IntegrationTests.csproj" />
     <Project Path="tests/CCStash.Mcp.Tests/CCStash.Mcp.Tests.csproj" />
     <Project Path="tests/CCStash.Stores.Qdrant.Tests/CCStash.Stores.Qdrant.Tests.csproj" />
     <Project Path="tests/CCStash.Stores.Sqlite.Tests/CCStash.Stores.Sqlite.Tests.csproj" />
