@@ -480,3 +480,9 @@ $RECYCLE.BIN/
 
 # Vim temporary swap files
 *.swp
+
+# CCStash build artifacts
+artifacts/
+.inittest/
+mcp-stdout.log
+mcp-stderr.log

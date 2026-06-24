@@ -1,1 +1,82 @@
-"Consider user of sqlitevec or qdrant as vector repositories to be populated on pre-compaction hooks, and to inject tool and 'stashed context available' (with a context identifier) on post-compact hook for claude, and consider if this should force a clear or hook around that too/instead/configurable? Aim to be able to keep context small but pull recent information quickly when needed again." 
+# CCStash — Vector Context Stash for Claude Code
+
+CCStash gives Claude Code a **compaction-aware vector memory**. Just before the conversation is
+compacted, it distills the transcript into an embedded vector store. After compaction it injects a
+**tiny pointer** (not a context dump) and exposes a **`retrieve_context` MCP tool** so Claude can pull
+back specific earlier detail on demand.
+
+> The goal (from the original idea): *keep the live context small, but pull recent information back
+> quickly when it's needed again.*
+
+## The spine
+
+Post-compaction injection is a **minimal pointer, never a blob**. The compaction summary already
+carries the gist; the stash exists for **targeted detail recovery**, driven by the model calling a
+tool when it hits a gap.
+
+## How it works
+
+```
+ conversation grows
+        │
+        ▼
+ ┌──────────────┐   PreCompact hook        ┌───────────────────────────┐
+ │  /compact or │ ───────────────────────► │ ccstash stash             │
+ │  auto-compact│   (transcript_path)      │  parse → distill → chunk  │
+ └──────────────┘                          │  → embed → sqlite store   │
+        │                                  └───────────────────────────┘
+        ▼  (history summarized)
+ ┌──────────────┐   SessionStart[compact]  ┌───────────────────────────┐
+ │  compacted   │ ───────────────────────► │ ccstash pointer           │
+ │  session     │                          │  "🗄️ N chunks stashed —    │
+ └──────────────┘                          │   call retrieve_context"  │
+        │                                  └───────────────────────────┘
+        ▼  later, Claude needs detail
+ ┌──────────────┐   MCP tool call          ┌───────────────────────────┐
+ │ retrieve_    │ ───────────────────────► │ semantic search → top-k   │
+ │ context(q)   │ ◄─────────────────────── │ distilled chunks          │
+ └──────────────┘                          └───────────────────────────┘
+```
+
+## Components
+
+| Project | Responsibility |
+|---|---|
+| `CCStash.Core` | Transcript parser, distiller (truncates bulky tool output), chunker, `IVectorStore`/`IEmbedder` interfaces, stash + retrieval services, config. |
+| `CCStash.Stores.Sqlite` | Single-file SQLite store (no daemon). |
+| `CCStash.Embeddings.Onnx` | Local `all-MiniLM-L6-v2` embeddings via ONNX Runtime — no API key. |
+| `CCStash.Mcp` | `retrieve_context` / `list_stashes` MCP tools. |
+| `CCStash` | The CLI tool (`dnx`-runnable): `stash`, `pointer`, `mcp`, `init`, `status`, `search`. |
+
+## Quick start
+
+Requires the **.NET 10 SDK** (provides `dnx`).
+
+```bash
+# from your project directory
+dnx -y CCStash -- init      # wire hooks (.claude/settings.json) + MCP server (.mcp.json)
+# place a local model for semantic embeddings (optional but recommended):
+#   ~/.claude/ccstash/models/all-MiniLM-L6-v2/{model.onnx,tokenizer.json}
+# restart Claude Code
+```
+
+Then just work. On compaction CCStash stashes automatically; when Claude needs older detail it calls
+`retrieve_context`. Inspect the stash any time:
+
+```bash
+dnx CCStash -- status                 # chunk count, model, latest session
+dnx CCStash -- search "that database decision"
+```
+
+See [docs/INSTALL.md](docs/INSTALL.md) for details and the end-to-end check.
+
+## Design & plan
+
+- Design spec: [docs/superpowers/specs/2026-06-24-ccstash-vector-context-stash-design.md](docs/superpowers/specs/2026-06-24-ccstash-vector-context-stash-design.md)
+- Implementation plan: [docs/superpowers/plans/2026-06-24-ccstash-vertical-slice.md](docs/superpowers/plans/2026-06-24-ccstash-vertical-slice.md)
+
+## Status
+
+Working end-to-end: stash (incremental) → pointer → semantic `retrieve_context`. sqlite-vec native
+extension and Qdrant/hybrid-search backends are planned behind the existing `IVectorStore` interface;
+local ONNX embeddings are the default, with `FakeEmbedder` as an offline fallback so hooks never fail.

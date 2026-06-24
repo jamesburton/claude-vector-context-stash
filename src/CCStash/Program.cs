@@ -17,6 +17,7 @@ return args[0] switch
     "status" => await StatusVerb.RunAsync(cwd, Console.Out),
     "search" => await SearchVerb.RunAsync(cwd, args.Length > 1 ? string.Join(' ', args[1..]) : string.Empty, Console.Out),
     "mcp" => await McpVerb.RunAsync(cwd),
+    "init" => await InitVerb.RunAsync(cwd, Console.Out),
     _ => Unknown(args[0]),
 };
 
