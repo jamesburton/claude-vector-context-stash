@@ -57,10 +57,13 @@ internal static class InitVerb
         var root = LoadObject(mcpPath);
         var servers = root["mcpServers"] as JsonObject ?? new JsonObject();
         root["mcpServers"] = servers;
+        // Bake the absolute project path so the server resolves the SAME db/collection as the
+        // hooks regardless of the working directory Claude Code launches it from.
+        var projectDir = Path.GetFullPath(Path.GetDirectoryName(mcpPath)!);
         servers["ccstash"] = new JsonObject
         {
             ["command"] = "dnx",
-            ["args"] = new JsonArray("-y", "CCStash", "--", "mcp"),
+            ["args"] = new JsonArray("-y", "CCStash", "--", "mcp", "--project", projectDir),
         };
         Save(mcpPath, root);
     }

@@ -3,19 +3,33 @@
 CCStash is a .NET tool run zero-install via `dnx`. It requires the **.NET 10 SDK** (which provides
 `dnx`).
 
-## 1. Publish (until it's on a public feed)
+CCStash's hooks and MCP server invoke it as `dnx CCStash` — `dnx` resolves the tool from a NuGet
+feed. So CCStash must be reachable on a feed `dnx` is configured to use.
+
+### Option A — published feed (the intended path)
+
+Publish once, then `dnx CCStash` works anywhere:
 
 ```bash
 dotnet pack src/CCStash -c Release -o ./artifacts
-# push artifacts/CCStash.<version>.nupkg to nuget.org or a local/private feed
+dotnet nuget push artifacts/CCStash.*.nupkg --source <your-feed> --api-key <key>
+dnx CCStash -- status      # resolves from the feed, runs the tool
 ```
 
-For local testing without a feed, you can install from the folder:
+### Option B — local source, before publishing
+
+`dnx` accepts a NuGet config selecting a local folder source:
 
 ```bash
-dotnet tool install --global --add-source ./artifacts CCStash
-ccstash --help    # or: dnx CCStash -- status   once it's on a feed dnx can reach
+dotnet pack src/CCStash -c Release -o ./artifacts
+# dnx-nuget.config points at ./artifacts + nuget.org
+dotnet dnx --configfile dnx-nuget.config CCStash -- status
 ```
+
+> Verified working: `dotnet dnx --configfile dnx-nuget.config CCStash -- status` resolves the packed
+> tool from `./artifacts` and runs it. To make the hooks use a local source pre-publish, add that
+> `--configfile` argument to the commands `init` writes (or point your machine's NuGet config at the
+> feed).
 
 ## 2. Add a local embedding model (recommended)
 

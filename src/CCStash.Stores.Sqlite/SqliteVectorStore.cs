@@ -31,6 +31,11 @@ public sealed class SqliteVectorStore(string dbPath) : IVectorStore
         _connection = new SqliteConnection($"Data Source={dbPath};Pooling=False");
         await _connection.OpenAsync(ct);
 
+        // The MCP server holds a connection for its lifetime while separate stash/pointer
+        // processes write the same file. WAL allows concurrent reader+writer, and busy_timeout
+        // makes a writer wait briefly for a lock instead of failing with SQLITE_BUSY.
+        await Exec("PRAGMA journal_mode=WAL; PRAGMA busy_timeout=5000;", ct);
+
         await Exec(
             """
             CREATE TABLE IF NOT EXISTS chunks(

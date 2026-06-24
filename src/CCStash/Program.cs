@@ -16,7 +16,7 @@ return args[0] switch
     "pointer" => await PointerVerb.RunAsync(Console.In, Console.Out),
     "status" => await StatusVerb.RunAsync(cwd, Console.Out),
     "search" => await SearchVerb.RunAsync(cwd, args.Length > 1 ? string.Join(' ', args[1..]) : string.Empty, Console.Out),
-    "mcp" => await McpVerb.RunAsync(cwd),
+    "mcp" => await McpVerb.RunAsync(ResolveProject(args, cwd)),
     "init" => await InitVerb.RunAsync(cwd, Console.Out),
     _ => Unknown(args[0]),
 };
@@ -25,4 +25,17 @@ static int Unknown(string verb)
 {
     Console.Error.WriteLine($"Unknown verb: {verb}");
     return 1;
+}
+
+// Resolve the project directory for the MCP server, which Claude Code may launch from any cwd.
+// Precedence: --project <path> arg (baked into .mcp.json by `init`) > CCSTASH_PROJECT env > cwd.
+static string ResolveProject(string[] args, string cwd)
+{
+    var i = Array.IndexOf(args, "--project");
+    if (i >= 0 && i + 1 < args.Length)
+    {
+        return args[i + 1];
+    }
+
+    return Environment.GetEnvironmentVariable("CCSTASH_PROJECT") ?? cwd;
 }
