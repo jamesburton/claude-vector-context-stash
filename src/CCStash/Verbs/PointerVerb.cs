@@ -15,7 +15,11 @@ internal static class PointerVerb
             var input = HookInput.FromJson(await stdin.ReadToEndAsync());
             var cfg = CCStashConfig.Load(CCStashPaths.ConfigPath);
             using var store = Composition.BuildStore(input.Cwd, cfg);
-            await store.InitializeAsync(384, cfg.EmbeddingModel); // pointer only needs a count, not embeddings
+
+            // Pointer only needs a count, so it avoids loading the embedder. allowReset defaults to
+            // false, so this read-only init can never wipe the stash even if the passed identity
+            // differs from what stash recorded (count does not depend on dimension/model).
+            await store.InitializeAsync(384, cfg.EmbeddingModel);
             var count = await store.CountAsync(input.SessionId);
             if (count == 0)
             {

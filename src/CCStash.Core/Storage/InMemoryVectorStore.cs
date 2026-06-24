@@ -6,7 +6,7 @@ public sealed class InMemoryVectorStore : IVectorStore
     private readonly Dictionary<string, StoredChunk> _chunks = new();
 
     /// <inheritdoc/>
-    public Task InitializeAsync(int dimension, string embeddingModel, CancellationToken ct = default)
+    public Task InitializeAsync(int dimension, string embeddingModel, bool allowReset = false, CancellationToken ct = default)
         => Task.CompletedTask;
 
     /// <inheritdoc/>

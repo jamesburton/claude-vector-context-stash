@@ -38,27 +38,29 @@ public class SqliteVectorStoreTests : IDisposable
     {
         using (var store = new SqliteVectorStore(_dbPath))
         {
-            await store.InitializeAsync(2, "model-a");
+            await store.InitializeAsync(2, "model-a", allowReset: true);
             await store.UpsertAsync([Chunk("a", 0, "s1", [1f, 0f])]);
             Assert.Equal(1, await store.CountAsync("s1"));
         }
 
-        // Reopen with a different model: prior vectors are not comparable, so they are cleared.
-        using (var store = new SqliteVectorStore(_dbPath))
+        // A read-only open with a different model must NOT wipe the stash.
+        using (var readOnly = new SqliteVectorStore(_dbPath))
         {
-            await store.InitializeAsync(3, "model-b");
-            Assert.Equal(0, await store.CountAsync("s1"));
+            await readOnly.InitializeAsync(3, "model-b", allowReset: false);
+            Assert.Equal(1, await readOnly.CountAsync("s1"));
         }
 
-        // Reopen with the same model: data is preserved.
+        // The writer with a different model clears the now-incompatible vectors.
         using (var store = new SqliteVectorStore(_dbPath))
         {
-            await store.InitializeAsync(3, "model-b");
+            await store.InitializeAsync(3, "model-b", allowReset: true);
+            Assert.Equal(0, await store.CountAsync("s1"));
             await store.UpsertAsync([Chunk("c", 0, "s1", [1f, 0f, 0f])]);
         }
 
+        // Same model again: data is preserved.
         using var reopened = new SqliteVectorStore(_dbPath);
-        await reopened.InitializeAsync(3, "model-b");
+        await reopened.InitializeAsync(3, "model-b", allowReset: true);
         Assert.Equal(1, await reopened.CountAsync("s1"));
     }
 

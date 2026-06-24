@@ -19,7 +19,7 @@ public sealed class RetrievalService(IEmbedder embedder, IVectorStore store) : I
     /// <inheritdoc/>
     public async Task<IReadOnlyList<RetrievedChunk>> RetrieveAsync(string query, int limit, string? session, CancellationToken ct = default)
     {
-        await store.InitializeAsync(embedder.Dimension, embedder.ModelId, ct);
+        await store.InitializeAsync(embedder.Dimension, embedder.ModelId, ct: ct);
         var q = await embedder.EmbedAsync(query, ct);
         var hits = await store.SearchAsync(q, limit, session, query, ct);
         return hits

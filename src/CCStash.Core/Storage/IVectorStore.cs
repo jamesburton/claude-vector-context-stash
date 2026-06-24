@@ -3,8 +3,13 @@ namespace CCStash.Core.Storage;
 /// <summary>An embedded vector store for distilled conversation chunks.</summary>
 public interface IVectorStore : IDisposable
 {
-    /// <summary>Ensure the store exists and matches the given embedding dimension/model.</summary>
-    Task InitializeAsync(int dimension, string embeddingModel, CancellationToken ct = default);
+    /// <summary>
+    /// Ensure the store exists for the given embedding dimension/model. When
+    /// <paramref name="allowReset"/> is true (the writer/stash path) and the recorded model or
+    /// dimension differs, incompatible vectors are cleared; read-only callers pass false and never
+    /// mutate the stash.
+    /// </summary>
+    Task InitializeAsync(int dimension, string embeddingModel, bool allowReset = false, CancellationToken ct = default);
 
     /// <summary>Insert or replace chunks by <see cref="StoredChunk.Id"/>.</summary>
     Task UpsertAsync(IReadOnlyList<StoredChunk> chunks, CancellationToken ct = default);

@@ -32,7 +32,7 @@ public sealed class StashService(
     /// <inheritdoc/>
     public async Task<StashResult> StashAsync(StashRequest request, CancellationToken ct = default)
     {
-        await store.InitializeAsync(embedder.Dimension, embedder.ModelId, ct);
+        await store.InitializeAsync(embedder.Dimension, embedder.ModelId, allowReset: true, ct);
 
         var highWater = await store.GetHighWaterMarkAsync(request.Session, ct);
         var turns = parser.Parse(request.TranscriptPath).Where(t => t.Index > highWater).ToList();

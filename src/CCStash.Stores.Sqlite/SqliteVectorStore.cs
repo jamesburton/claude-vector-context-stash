@@ -18,7 +18,7 @@ public sealed class SqliteVectorStore(string dbPath) : IVectorStore
     private SqliteConnection Conn => _connection ?? throw new InvalidOperationException("InitializeAsync not called.");
 
     /// <inheritdoc/>
-    public async Task InitializeAsync(int dimension, string embeddingModel, CancellationToken ct = default)
+    public async Task InitializeAsync(int dimension, string embeddingModel, bool allowReset = false, CancellationToken ct = default)
     {
         if (_connection is not null)
         {
@@ -46,32 +46,45 @@ public sealed class SqliteVectorStore(string dbPath) : IVectorStore
             CREATE VIRTUAL TABLE IF NOT EXISTS chunks_fts USING fts5(id UNINDEXED, text);
             """, ct);
 
-        await GuardEmbeddingModelAsync(dimension, embeddingModel, ct);
+        await GuardEmbeddingModelAsync(dimension, embeddingModel, allowReset, ct);
     }
 
     /// <summary>
-    /// Vectors from different models/dimensions are not comparable. If the recorded model or
-    /// dimension differs from the current embedder, wipe the (now-unusable) chunks and record the
-    /// new identity, so a fresh re-stash repopulates cleanly rather than mixing vector spaces.
+    /// Vectors from different models/dimensions are not comparable. Only the writer path
+    /// (<paramref name="allowReset"/> = true) may react to a change: it wipes the now-unusable
+    /// chunks and records the new identity so a fresh re-stash repopulates cleanly. Read-only
+    /// callers never mutate the stash — they must not be able to destroy it (e.g. a pointer firing
+    /// while the embedding model is temporarily unavailable).
     /// </summary>
-    private async Task GuardEmbeddingModelAsync(int dimension, string embeddingModel, CancellationToken ct)
+    private async Task GuardEmbeddingModelAsync(int dimension, string embeddingModel, bool allowReset, CancellationToken ct)
     {
         var storedModel = await ScalarAsync("SELECT value FROM meta WHERE key='model';", ct);
         var storedDim = await ScalarAsync("SELECT value FROM meta WHERE key='dimension';", ct);
         var current = $"{embeddingModel}/{dimension}";
+        var matches = storedModel is not null && $"{storedModel}/{storedDim}" == current;
 
-        if (storedModel is not null && $"{storedModel}/{storedDim}" != current)
+        if (matches || !allowReset)
         {
-            await Exec("DELETE FROM chunks; DELETE FROM chunks_fts;", ct);
+            // First-time writer init records identity; otherwise leave the recorded identity intact.
+            if (storedModel is null && allowReset)
+            {
+                await RecordIdentity(dimension, embeddingModel, ct);
+            }
+
+            return;
         }
 
-        await Exec(
-            "INSERT INTO meta(key,value) VALUES('model',$m),('dimension',$d) " +
-            "ON CONFLICT(key) DO UPDATE SET value=excluded.value;",
-            ct,
-            ("$m", embeddingModel),
-            ("$d", dimension.ToString(CultureInfo.InvariantCulture)));
+        // Writer observed a genuine model/dimension change: reset and adopt the new identity.
+        await Exec("DELETE FROM chunks; DELETE FROM chunks_fts;", ct);
+        await RecordIdentity(dimension, embeddingModel, ct);
     }
+
+    private Task RecordIdentity(int dimension, string embeddingModel, CancellationToken ct) => Exec(
+        "INSERT INTO meta(key,value) VALUES('model',$m),('dimension',$d) " +
+        "ON CONFLICT(key) DO UPDATE SET value=excluded.value;",
+        ct,
+        ("$m", embeddingModel),
+        ("$d", dimension.ToString(CultureInfo.InvariantCulture)));
 
     /// <inheritdoc/>
     public async Task UpsertAsync(IReadOnlyList<StoredChunk> chunks, CancellationToken ct = default)

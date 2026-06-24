@@ -29,8 +29,10 @@ public sealed class QdrantVectorStore : IVectorStore
     }
 
     /// <inheritdoc/>
-    public async Task InitializeAsync(int dimension, string embeddingModel, CancellationToken ct = default)
+    public async Task InitializeAsync(int dimension, string embeddingModel, bool allowReset = false, CancellationToken ct = default)
     {
+        // allowReset is unused: the collection name already encodes model+dimension, so a model
+        // change naturally targets a different collection rather than mutating an existing one.
         _collection = Sanitize($"ccstash_{_baseName}_{embeddingModel}_{dimension}");
         if (!await _client.CollectionExistsAsync(_collection, ct))
         {
