@@ -15,7 +15,10 @@ internal static class StatusVerb
 
         var total = await store.CountAsync(null);
         var latest = await store.GetLatestSessionAsync();
-        await stdout.WriteLineAsync($"DB: {CCStashPaths.DbPath(cwd)}");
+        var backend = cfg.Store.Equals("qdrant", StringComparison.OrdinalIgnoreCase)
+            ? $"qdrant ({cfg.QdrantHost}:{cfg.QdrantPort})"
+            : $"sqlite ({CCStashPaths.DbPath(cwd)})";
+        await stdout.WriteLineAsync($"Store: {backend}");
         await stdout.WriteLineAsync($"Model: {embedder.ModelId} (dim {embedder.Dimension})");
         await stdout.WriteLineAsync($"Chunks: {total}; latest session: {latest ?? "(none)"}");
         return 0;

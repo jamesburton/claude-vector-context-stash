@@ -6,6 +6,7 @@ using CCStash.Core.Embeddings;
 using CCStash.Core.Storage;
 using CCStash.Core.Transcript;
 using CCStash.Embeddings.Onnx;
+using CCStash.Stores.Qdrant;
 using CCStash.Stores.Sqlite;
 
 namespace CCStash;
@@ -33,9 +34,11 @@ internal static class Composition
         return new FakeEmbedder(384);
     }
 
-    /// <summary>Build the project-scoped vector store.</summary>
+    /// <summary>Build the project-scoped vector store selected by config (<c>sqlite</c> or <c>qdrant</c>).</summary>
     public static IVectorStore BuildStore(string cwd, CCStashConfig cfg)
-        => new SqliteVectorStore(CCStashPaths.DbPath(cwd));
+        => cfg.Store.Equals("qdrant", StringComparison.OrdinalIgnoreCase)
+            ? new QdrantVectorStore(cfg.QdrantHost, cfg.QdrantPort, CCStashPaths.ProjectHash(cwd), cfg.QdrantApiKey)
+            : new SqliteVectorStore(CCStashPaths.DbPath(cwd));
 
     /// <summary>Build the stash service for a project.</summary>
     public static async Task<IStashService> BuildStashAsync(string cwd, CCStashConfig cfg)

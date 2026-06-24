@@ -5,6 +5,7 @@
     <ProjectReference Include="..\CCStash.Stores.Sqlite\CCStash.Stores.Sqlite.csproj" />
     <ProjectReference Include="..\CCStash.Embeddings.Onnx\CCStash.Embeddings.Onnx.csproj" />
     <ProjectReference Include="..\CCStash.Mcp\CCStash.Mcp.csproj" />
+    <ProjectReference Include="..\CCStash.Stores.Qdrant\CCStash.Stores.Qdrant.csproj" />
   </ItemGroup>
 
   <ItemGroup>

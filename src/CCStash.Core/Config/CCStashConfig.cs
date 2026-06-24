@@ -10,7 +10,10 @@ public sealed record CCStashConfig(
     int MaxToolResultChars = 800,
     bool IncludeThinking = true,
     string RetrievalScope = "session",
-    int RetrievalLimit = 6)
+    int RetrievalLimit = 6,
+    string QdrantHost = "localhost",
+    int QdrantPort = 6334,
+    string? QdrantApiKey = null)
 {
     /// <summary>True when retrieval should span all sessions in the project.</summary>
     public bool ProjectWide => string.Equals(RetrievalScope, "project", StringComparison.OrdinalIgnoreCase);

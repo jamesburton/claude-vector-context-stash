@@ -37,7 +37,34 @@ public sealed class SqliteVectorStore(string dbPath) : IVectorStore
                 id TEXT PRIMARY KEY, project TEXT, session TEXT, turn_index INTEGER,
                 role TEXT, type TEXT, ts TEXT, text TEXT, embedding BLOB);
             CREATE INDEX IF NOT EXISTS ix_chunks_session ON chunks(session);
+            CREATE TABLE IF NOT EXISTS meta(key TEXT PRIMARY KEY, value TEXT);
             """, ct);
+
+        await GuardEmbeddingModelAsync(dimension, embeddingModel, ct);
+    }
+
+    /// <summary>
+    /// Vectors from different models/dimensions are not comparable. If the recorded model or
+    /// dimension differs from the current embedder, wipe the (now-unusable) chunks and record the
+    /// new identity, so a fresh re-stash repopulates cleanly rather than mixing vector spaces.
+    /// </summary>
+    private async Task GuardEmbeddingModelAsync(int dimension, string embeddingModel, CancellationToken ct)
+    {
+        var storedModel = await ScalarAsync("SELECT value FROM meta WHERE key='model';", ct);
+        var storedDim = await ScalarAsync("SELECT value FROM meta WHERE key='dimension';", ct);
+        var current = $"{embeddingModel}/{dimension}";
+
+        if (storedModel is not null && $"{storedModel}/{storedDim}" != current)
+        {
+            await Exec("DELETE FROM chunks;", ct);
+        }
+
+        await Exec(
+            "INSERT INTO meta(key,value) VALUES('model',$m),('dimension',$d) " +
+            "ON CONFLICT(key) DO UPDATE SET value=excluded.value;",
+            ct,
+            ("$m", embeddingModel),
+            ("$d", dimension.ToString(CultureInfo.InvariantCulture)));
     }
 
     /// <inheritdoc/>
@@ -158,10 +185,22 @@ public sealed class SqliteVectorStore(string dbPath) : IVectorStore
             r.GetString(7), embedding);
     }
 
-    private async Task Exec(string sql, CancellationToken ct)
+    private async Task Exec(string sql, CancellationToken ct, params (string Name, object Value)[] parameters)
     {
         await using var cmd = Conn.CreateCommand();
         cmd.CommandText = sql;
+        foreach (var (name, value) in parameters)
+        {
+            cmd.Parameters.AddWithValue(name, value);
+        }
+
         await cmd.ExecuteNonQueryAsync(ct);
+    }
+
+    private async Task<string?> ScalarAsync(string sql, CancellationToken ct)
+    {
+        await using var cmd = Conn.CreateCommand();
+        cmd.CommandText = sql;
+        return await cmd.ExecuteScalarAsync(ct) as string;
     }
 }
