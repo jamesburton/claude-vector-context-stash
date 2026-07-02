@@ -14,5 +14,6 @@
     <Project Path="tests/CCStash.Mcp.Tests/CCStash.Mcp.Tests.csproj" />
     <Project Path="tests/CCStash.Stores.Qdrant.Tests/CCStash.Stores.Qdrant.Tests.csproj" />
     <Project Path="tests/CCStash.Stores.Sqlite.Tests/CCStash.Stores.Sqlite.Tests.csproj" />
+    <Project Path="tests/CCStash.Tests/CCStash.Tests.csproj" />
   </Folder>
 </Solution>
