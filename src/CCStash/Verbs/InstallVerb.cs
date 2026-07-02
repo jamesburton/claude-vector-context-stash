@@ -1,4 +1,5 @@
 using CCStash.Core.Install;
+using Spectre.Console;
 
 namespace CCStash.Verbs;
 
@@ -18,7 +19,10 @@ internal static class InstallVerb
         new CodeSharpAdapter(),
     ];
 
-    /// <summary>Run <c>install</c>: flag-driven when flags are present, otherwise usage/error (TUI added in a later task).</summary>
+    /// <summary>
+    /// Run <c>install</c>: flag-driven when flags are present; otherwise a Spectre.Console TUI when a
+    /// terminal is attached; otherwise usage + non-zero exit (never hangs waiting for a TUI with no TTY).
+    /// </summary>
     public static Task<int> RunAsync(string[] args, string cwd, TextReader stdin, TextWriter stdout, TextWriter stderr)
     {
         if (HasActionableFlags(args))
@@ -26,8 +30,71 @@ internal static class InstallVerb
             return RunSelectedAsync(args, cwd, stdin, stdout, stderr, uninstall: false);
         }
 
+        if (AnsiConsole.Profile.Capabilities.Interactive)
+        {
+            return RunTuiAsync(cwd, stdout);
+        }
+
         stderr.WriteLine(UsageLine);
         return Task.FromResult(1);
+    }
+
+    private static Task<int> RunTuiAsync(string cwd, TextWriter stdout)
+    {
+        var prompt = new MultiSelectionPrompt<string>()
+            .Title("Select agents to install CCStash for:")
+            .InstructionsText("[grey](Press [blue]<space>[/] to toggle, [green]<enter>[/] to confirm)[/]")
+            .UseConverter(id => AllAdapters.First(a => a.Id == id).DisplayName);
+        foreach (var adapter in AllAdapters)
+        {
+            var detected = adapter.Detect(new InstallContext(InstallScope.Project, cwd));
+            var choice = prompt.AddChoice(adapter.Id);
+            if (detected)
+            {
+                choice.Select();
+            }
+        }
+
+        var selectedIds = AnsiConsole.Prompt(prompt);
+
+        if (selectedIds.Count == 0)
+        {
+            stdout.WriteLine("No agents selected; nothing to do.");
+            return Task.FromResult(0);
+        }
+
+        var scopeChoice = AnsiConsole.Prompt(
+            new SelectionPrompt<string>()
+                .Title("Install scope:")
+                .AddChoices("project", "user"));
+
+        var args = new List<string> { "--agent", string.Join(',', selectedIds), "--scope", scopeChoice, "--project", cwd };
+
+        var entries = selectedIds
+            .Select(id => AllAdapters.First(a => a.Id == id))
+            .Where(a => a.SupportsScope(scopeChoice == "user" ? InstallScope.User : InstallScope.Project))
+            .Select(a =>
+            {
+                var ctx = new InstallContext(scopeChoice == "user" ? InstallScope.User : InstallScope.Project, cwd);
+                return (Adapter: a, Ctx: ctx, Plan: a.Plan(ctx));
+            })
+            .ToList();
+
+        PrintPlan(stdout, entries, uninstall: false);
+
+        if (!AnsiConsole.Confirm("Apply these changes?"))
+        {
+            stdout.WriteLine("Aborted.");
+            return Task.FromResult(1);
+        }
+
+        foreach (var (adapter, ctx, plan) in entries)
+        {
+            adapter.Apply(plan, ctx);
+            stdout.WriteLine($"  applied {adapter.DisplayName} ({ctx.Scope})");
+        }
+
+        return Task.FromResult(0);
     }
 
     /// <summary>Run <c>uninstall</c>: same selectors as <c>install</c>, dispatching to <see cref="IAgentAdapter.Remove"/>.</summary>

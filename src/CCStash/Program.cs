@@ -4,7 +4,7 @@ using CCStash.Verbs;
 // to avoid a pre-release dependency — the verb contract is identical.)
 if (args.Length == 0)
 {
-    Console.Error.WriteLine("Usage: ccstash <stash|pointer|status|search|gc|mcp|init> [args]");
+    Console.Error.WriteLine("Usage: ccstash <stash|pointer|status|search|gc|mcp|install|uninstall|init> [args]");
     return 1;
 }
 
@@ -18,7 +18,9 @@ return args[0] switch
     "search" => await SearchVerb.RunAsync(cwd, args.Length > 1 ? string.Join(' ', args[1..]) : string.Empty, Console.Out),
     "gc" => await GcVerb.RunAsync(args[1..], Console.Out),
     "mcp" => await McpVerb.RunAsync(ResolveProject(args, cwd)),
-    "init" => await InitVerb.RunAsync(cwd, Console.Out),
+    "install" => await InstallVerb.RunAsync(args[1..], cwd, Console.In, Console.Out, Console.Error),
+    "uninstall" => await InstallVerb.RunUninstallAsync(args[1..], cwd, Console.In, Console.Out, Console.Error),
+    "init" => await InstallVerb.RunAsync(["--agent", "claude", "--scope", "project", "--yes"], cwd, Console.In, Console.Out, Console.Error),
     _ => Unknown(args[0]),
 };
 
