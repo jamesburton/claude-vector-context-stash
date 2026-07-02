@@ -49,14 +49,25 @@ ranking is keyword-ish rather than semantic.
 
 ```bash
 cd /path/to/your/project
-dnx -y CCStash -- init
+dnx -y CCStash -- install --agent claude --scope project --yes
+```
+
+Or interactively (multi-select agents, choose scope, review a dry-run plan, confirm):
+
+```bash
+dnx -y CCStash -- install
 ```
 
 This writes (merging, not clobbering):
 
 - `.claude/settings.json` — `PreCompact` → `ccstash stash`, `SessionStart[compact]` → `ccstash pointer`
-- `.mcp.json` — an `ccstash` MCP server (`ccstash mcp`)
+- `.mcp.json` — a `ccstash` MCP server (`ccstash mcp`)
 - `~/.claude/ccstash/config.json` — default settings
+
+Pass `--scope user` to install into `~/.claude/settings.json` / `~/.claude.json` instead (shared
+across all projects). `ccstash uninstall` with the same `--agent`/`--scope`/`--project` flags removes
+only the entries CCStash wrote. `ccstash init` remains as a fixed shorthand for
+`install --agent claude --scope project --yes`.
 
 Restart Claude Code so it loads the hooks and the MCP server.
 

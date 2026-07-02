@@ -54,7 +54,7 @@ Requires the **.NET 10 SDK** (provides `dnx`).
 
 ```bash
 # from your project directory
-dnx -y CCStash -- init      # wire hooks (.claude/settings.json) + MCP server (.mcp.json)
+dnx -y CCStash -- install   # wire hooks (.claude/settings.json) + MCP server (.mcp.json)
 # place a local model for semantic embeddings (optional but recommended):
 #   ~/.claude/ccstash/models/all-MiniLM-L6-v2/{model.onnx,tokenizer.json}
 # restart Claude Code
