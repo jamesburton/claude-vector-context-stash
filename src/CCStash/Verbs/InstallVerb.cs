@@ -68,8 +68,6 @@ internal static class InstallVerb
                 .Title("Install scope:")
                 .AddChoices("project", "user"));
 
-        var args = new List<string> { "--agent", string.Join(',', selectedIds), "--scope", scopeChoice, "--project", cwd };
-
         var entries = selectedIds
             .Select(id => AllAdapters.First(a => a.Id == id))
             .Where(a => a.SupportsScope(scopeChoice == "user" ? InstallScope.User : InstallScope.Project))
