@@ -12,7 +12,7 @@ var cwd = Environment.CurrentDirectory;
 
 return args[0] switch
 {
-    "stash" => await StashVerb.RunAsync(Console.In),
+    "stash" => await StashVerb.RunAsync(args[1..], Console.In),
     "pointer" => await PointerVerb.RunAsync(Console.In, Console.Out),
     "status" => await StatusVerb.RunAsync(cwd, Console.Out),
     "search" => await SearchVerb.RunAsync(cwd, args.Length > 1 ? string.Join(' ', args[1..]) : string.Empty, Console.Out),

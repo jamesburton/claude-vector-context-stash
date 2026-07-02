@@ -12,6 +12,11 @@
     <PackageReference Include="Microsoft.Extensions.Hosting" Version="10.0.9" />
   </ItemGroup>
 
+  <!-- Lets CCStash.Tests exercise internal verb classes (e.g. StashVerb) directly. -->
+  <ItemGroup>
+    <InternalsVisibleTo Include="CCStash.Tests" />
+  </ItemGroup>
+
   <PropertyGroup>
     <OutputType>Exe</OutputType>
     <TargetFramework>net10.0</TargetFramework>
