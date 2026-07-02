@@ -74,6 +74,8 @@ See [docs/INSTALL.md](docs/INSTALL.md) for details and the end-to-end check.
 
 - Design spec: [docs/superpowers/specs/2026-06-24-ccstash-vector-context-stash-design.md](docs/superpowers/specs/2026-06-24-ccstash-vector-context-stash-design.md)
 - Implementation plan: [docs/superpowers/plans/2026-06-24-ccstash-vertical-slice.md](docs/superpowers/plans/2026-06-24-ccstash-vertical-slice.md)
+- `install`/`uninstall` command design spec: [docs/superpowers/specs/2026-06-25-ccstash-install-command-design.md](docs/superpowers/specs/2026-06-25-ccstash-install-command-design.md)
+- `install`/`uninstall` implementation plan (SP1): [docs/superpowers/plans/2026-07-02-ccstash-install-command-sp1.md](docs/superpowers/plans/2026-07-02-ccstash-install-command-sp1.md)
 
 ## Status
 
