@@ -70,6 +70,16 @@ dnx CCStash -- search "that database decision"
 
 See [docs/INSTALL.md](docs/INSTALL.md) for details and the end-to-end check.
 
+### MCP transport
+
+`ccstash mcp` serves `retrieve_context`/`list_stashes` over **stdio** by default (what `install`
+wires up). Pass `--http` to serve over Streamable HTTP instead, optionally with `--port <n>`
+(default `6733`):
+
+```bash
+dnx CCStash -- mcp --http --port 6733   # listens on http://localhost:6733/mcp
+```
+
 ## Design & plan
 
 - Design spec: [docs/superpowers/specs/2026-06-24-ccstash-vector-context-stash-design.md](docs/superpowers/specs/2026-06-24-ccstash-vector-context-stash-design.md)

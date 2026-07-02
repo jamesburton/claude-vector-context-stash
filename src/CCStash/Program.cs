@@ -17,7 +17,7 @@ return args[0] switch
     "status" => await StatusVerb.RunAsync(cwd, Console.Out),
     "search" => await SearchVerb.RunAsync(cwd, args.Length > 1 ? string.Join(' ', args[1..]) : string.Empty, Console.Out),
     "gc" => await GcVerb.RunAsync(args[1..], Console.Out),
-    "mcp" => await McpVerb.RunAsync(ResolveProject(args, cwd)),
+    "mcp" => await McpVerb.RunAsync(ResolveProject(args, cwd), args[1..]),
     "install" => await InstallVerb.RunAsync(args[1..], cwd, Console.In, Console.Out, Console.Error),
     "uninstall" => await InstallVerb.RunUninstallAsync(args[1..], cwd, Console.In, Console.Out, Console.Error),
     "init" => await InstallVerb.RunAsync(["--agent", "claude", "--scope", "project", "--yes"], cwd, Console.In, Console.Out, Console.Error),
