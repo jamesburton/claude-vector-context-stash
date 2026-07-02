@@ -27,4 +27,29 @@ public class CCStashPathsTests
         Assert.Equal(6, cfg.RetrievalLimit);
         Assert.False(cfg.ProjectWide);
     }
+
+    [Fact]
+    public void ClaudeUserPaths_use_home_override_when_set()
+    {
+        var fakeHome = Path.Combine(Path.GetTempPath(), $"ccstash-home-{Guid.NewGuid():N}");
+        Environment.SetEnvironmentVariable("CCSTASH_HOME_OVERRIDE", fakeHome);
+        try
+        {
+            Assert.Equal(Path.Combine(fakeHome, ".claude", "settings.json"), CCStashPaths.ClaudeUserSettingsPath);
+            Assert.Equal(Path.Combine(fakeHome, ".claude.json"), CCStashPaths.ClaudeUserJsonPath);
+        }
+        finally
+        {
+            Environment.SetEnvironmentVariable("CCSTASH_HOME_OVERRIDE", null);
+        }
+    }
+
+    [Fact]
+    public void ClaudeUserPaths_fall_back_to_real_user_profile_when_unset()
+    {
+        Environment.SetEnvironmentVariable("CCSTASH_HOME_OVERRIDE", null);
+        var expectedHome = Environment.GetFolderPath(Environment.SpecialFolder.UserProfile);
+
+        Assert.Equal(Path.Combine(expectedHome, ".claude", "settings.json"), CCStashPaths.ClaudeUserSettingsPath);
+    }
 }

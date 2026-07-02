@@ -28,4 +28,25 @@ public static class CCStashPaths
 
     /// <summary>Path to the per-project sqlite database.</summary>
     public static string DbPath(string cwd) => Path.Combine(DataDir, $"{ProjectHash(cwd)}.db");
+
+    /// <summary>
+    /// Path to the user-scoped Claude Code settings file (<c>~/.claude/settings.json</c>), used by
+    /// <c>install --scope user</c> for the Claude Code adapter.
+    /// </summary>
+    public static string ClaudeUserSettingsPath => Path.Combine(HomeDir, ".claude", "settings.json");
+
+    /// <summary>
+    /// Path to Claude Code's user-scoped MCP registry (<c>~/.claude.json</c>), used by
+    /// <c>install --scope user</c> for the Claude Code adapter.
+    /// </summary>
+    public static string ClaudeUserJsonPath => Path.Combine(HomeDir, ".claude.json");
+
+    /// <summary>
+    /// Resolves the user's home directory, honoring <c>CCSTASH_HOME_OVERRIDE</c> when set. The
+    /// override exists purely as a test seam so user-scope installer tests never touch the real
+    /// <c>~</c>; production code paths never set this variable.
+    /// </summary>
+    private static string HomeDir =>
+        Environment.GetEnvironmentVariable("CCSTASH_HOME_OVERRIDE")
+        ?? Environment.GetFolderPath(Environment.SpecialFolder.UserProfile);
 }
