@@ -134,6 +134,7 @@ public class ClaudeCodeAdapterTests : IDisposable
             settings["hooks"]!.AsObject(), "PreCompact",
             e => (string?)e["hooks"]![0]!["command"] == "some-other-tool",
             () => new JsonObject { ["hooks"] = new JsonArray(new JsonObject { ["type"] = "command", ["command"] = "some-other-tool" }) });
+        settings["unrelatedTopLevelKey"] = "keep-me";
         JsonConfigEditor.Save(settingsPath, settings);
 
         adapter.Remove(ctx);
@@ -143,6 +144,7 @@ public class ClaudeCodeAdapterTests : IDisposable
             .Select(e => (string?)e!["hooks"]![0]!["command"]).ToList();
         Assert.DoesNotContain(ClaudeCodeAdapter.StashCommand, preCompactCommands);
         Assert.Contains("some-other-tool", preCompactCommands);
+        Assert.Equal("keep-me", (string?)after["unrelatedTopLevelKey"]);
         var mcp = JsonConfigEditor.LoadOrEmpty(Path.Combine(_projectDir, ".mcp.json"));
         Assert.Null(mcp["mcpServers"]?["ccstash"]);
     }
