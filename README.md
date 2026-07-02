@@ -46,7 +46,7 @@ tool when it hits a gap.
 | `CCStash.Stores.Sqlite` | Single-file SQLite store (no daemon). |
 | `CCStash.Embeddings.Onnx` | Local `all-MiniLM-L6-v2` embeddings via ONNX Runtime — no API key. |
 | `CCStash.Mcp` | `retrieve_context` / `list_stashes` MCP tools. |
-| `CCStash` | The CLI tool (`dnx`-runnable): `stash`, `pointer`, `mcp`, `init`, `status`, `search`. |
+| `CCStash` | The CLI tool (`dnx`-runnable): `install`, `uninstall`, `stash`, `pointer`, `mcp`, `init`, `status`, `search`. |
 
 ## Quick start
 

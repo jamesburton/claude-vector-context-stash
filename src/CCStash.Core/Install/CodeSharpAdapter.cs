@@ -1,4 +1,3 @@
-// src/CCStash.Core/Install/CodeSharpAdapter.cs
 using System.Text.Json.Nodes;
 
 namespace CCStash.Core.Install;
