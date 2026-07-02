@@ -2,6 +2,7 @@ using CCStash.Core.Config;
 
 namespace CCStash.Core.Tests;
 
+[Collection("CCSTASH_HOME_OVERRIDE serial")]
 public class CCStashPathsTests
 {
     [Fact]

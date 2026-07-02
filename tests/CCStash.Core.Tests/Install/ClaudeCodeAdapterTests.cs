@@ -4,6 +4,7 @@ using CCStash.Core.Install;
 
 namespace CCStash.Core.Tests.Install;
 
+[Collection("CCSTASH_HOME_OVERRIDE serial")]
 public class ClaudeCodeAdapterTests : IDisposable
 {
     private readonly string _projectDir;
