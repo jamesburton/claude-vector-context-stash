@@ -98,6 +98,21 @@ public class InstallVerbTests : IDisposable
     }
 
     [Fact]
+    public async Task Uninstall_dry_run_removes_nothing()
+    {
+        var installArgs = new[] { "--agent", "all", "--scope", "project", "--project", _projectDir, "--yes" };
+        await InstallVerb.RunAsync(installArgs, _projectDir, new StringReader(string.Empty), _stdout, _stderr);
+
+        var uninstallArgs = new[] { "--agent", "all", "--scope", "project", "--project", _projectDir, "--dry-run", "--yes" };
+        var exit = await InstallVerb.RunUninstallAsync(uninstallArgs, _projectDir, new StringReader(string.Empty), _stdout, _stderr);
+
+        Assert.Equal(0, exit);
+        Assert.True(File.Exists(Path.Combine(_projectDir, ".claude", "settings.json")));
+        Assert.True(File.Exists(Path.Combine(_projectDir, ".mcp.json")));
+        Assert.Contains("dry-run", _stdout.ToString());
+    }
+
+    [Fact]
     public async Task Install_unknown_agent_reports_error_and_exits_nonzero()
     {
         var args = new[] { "--agent", "nope", "--scope", "project", "--project", _projectDir, "--yes" };

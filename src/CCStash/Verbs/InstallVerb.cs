@@ -67,7 +67,7 @@ internal static class InstallVerb
 
         PrintPlan(stdout, entries, uninstall);
 
-        if (!uninstall && dryRun)
+        if (dryRun)
         {
             stdout.WriteLine("[dry-run] no changes written.");
             return 0;
